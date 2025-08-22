@@ -15,6 +15,7 @@ dependencies = [
     "packaging>=24.2",
     "wheel>=0.43",
     "instructlab-training>=0.11.1",
+    "rhai-innovation-mini-trainer @ git+https://github.com/Red-Hat-AI-Innovation-Team/mini_trainer.git@a22c81c52660b1304e8fbef8bef548fcae93aba0",  # TODO: update this once we have a release
     "torch>=2.6.0",
     "numba>=0.50",
     "datasets>=2.15.0",
@@ -50,6 +51,7 @@ dynamic = ["version"]
 [project.optional-dependencies]
 cuda = [
     "instructlab-training[cuda]>=0.11.1",
+    "rhai-innovation-mini-trainer[cuda] @ git+https://github.com/Red-Hat-AI-Innovation-Team/mini_trainer.git@a22c81c52660b1304e8fbef8bef548fcae93aba0",  # TODO: update this once we have a release
     "flash-attn>=2.8",
     "einops>=0.8"
 ]

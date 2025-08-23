@@ -1,7 +1,5 @@
 import os
-import shutil
-from typing import Literal, get_origin, get_args, Union
-from itertools import chain
+from typing import get_origin, get_args, Union
 from dataclasses import fields
 
 import datasets
@@ -28,7 +26,7 @@ class OSFTAlgorithm(Algorithm):
         model_path: str,
         data_path: str,
         unfreeze_rank_ratio: float,
-        batch_size: int,
+        effective_batch_size: int,
         max_tokens_per_gpu: int,
         max_seq_len: int,
         learning_rate: float,
@@ -52,7 +50,7 @@ class OSFTAlgorithm(Algorithm):
         save_final_checkpoint: bool | None = None,
         
         # parameters for the training mode
-        epochs: int | None = None,
+        num_epochs: int | None = None,
 
         # whether to use the processed dataset
         use_processed_dataset: bool | None = None,
@@ -87,7 +85,7 @@ class OSFTAlgorithm(Algorithm):
             unfreeze_rank_ratio (float):
                 Controls the amount that each matrix is unfrozen during OSFT. 
                 Valid values are between 0.0 and 1.0.
-            batch_size (int): Batch size for training.
+            effective_batch_size (int): Effective batch size for training.
             max_tokens_per_gpu (int):
                 The maximum number of tokens placed on a single GPU for training.
                 When hitting OOMs, consider reducing this value.
@@ -109,7 +107,7 @@ class OSFTAlgorithm(Algorithm):
             lr_scheduler_kwargs (dict[str, str]): Additional scheduler parameters.
             checkpoint_at_epoch (bool): Whether to checkpoint at each epoch.
             save_final_checkpoint (bool): Whether to save final checkpoint once training is complete.
-            epochs (int): Number of epochs to train for.
+            num_epochs (int): Number of epochs to train for.
             use_processed_dataset (bool):
                 Whether to use the processed dataset. If False, the data is assumed to be in standard
                 messages format witha `messages` and optional `unmask` field on each sample.
@@ -137,7 +135,7 @@ class OSFTAlgorithm(Algorithm):
         required_params = {
             'model_path': model_path,
             'data_path': data_path,
-            'batch_size': batch_size,
+            'effective_batch_size': effective_batch_size,
             'max_tokens_per_gpu': max_tokens_per_gpu,
             'max_seq_len': max_seq_len,
             'learning_rate': learning_rate,
@@ -161,7 +159,7 @@ class OSFTAlgorithm(Algorithm):
             'checkpoint_at_epoch': checkpoint_at_epoch,
             'save_final_checkpoint': save_final_checkpoint,
 
-            'epochs': epochs,
+            'num_epochs': num_epochs,
 
             'use_liger': use_liger, 
             'seed': seed,
@@ -196,7 +194,7 @@ class OSFTAlgorithm(Algorithm):
             'model_path': str,
             'data_path': str,
             'unfreeze_rank_ratio': float,
-            'batch_size': int,
+            'effective_batch_size': int,
             'max_tokens_per_gpu': int,
             'max_seq_len': int,
             'learning_rate': float,
@@ -214,7 +212,7 @@ class OSFTAlgorithm(Algorithm):
             'lr_scheduler_kwargs': dict[str, str],
             'checkpoint_at_epoch': bool,
             'save_final_checkpoint': bool,
-            'epochs': int,
+            'num_epochs': int,
             'use_processed_dataset': bool,
             'unmask_messages': bool,
             'nproc_per_node': int,
@@ -320,7 +318,8 @@ class MiniTrainerOSFTBackend(Backend):
             'target_patterns': 'osft_target_patterns',
             'unfreeze_rank_ratio': 'osft_unfreeze_rank_ratio',
             'model_path': 'model_name_or_path',
-            'epochs': 'max_epochs',
+            'num_epochs': 'max_epochs',
+            'effective_batch_size': 'batch_size',
         }
  
         # Rename parameters before sending to backend
@@ -346,11 +345,16 @@ class MiniTrainerOSFTBackend(Backend):
         # adjust arguments to align with the API definition 
         training_args_pre = {k: v for k, v in algorithm_params.items() if k in training_args_fields and v is not None}
         training_args_pre['data_path'] = training_ready_data_path  # replaces raw data path with processed
-        
+
         # mini trainer can support multiple modes, but we don't expose this feature by default
         # to prevent the current API from becoming overly complicated
-        training_args_pre['training_mode'] = TrainingMode(training_args_pre.get('training_mode', 'epoch'))
-        training_args_pre['osft'] = True
+        if not isinstance(train_mode := training_args_pre.get('training_mode', TrainingMode.EPOCH), TrainingMode):
+            train_mode = TrainingMode(train_mode)
+        training_args_pre['training_mode'] = train_mode
+
+        # user may want to control this API field for debug purposes, so we allow for it to be read
+        # but default it to True
+        training_args_pre['osft'] = training_args_pre.get('osft', True)
 
         torchrun_args_pre = {k: v for k, v in algorithm_params.items() if k in torchrun_args_fields and v is not None}
 
@@ -419,7 +423,7 @@ def osft(
     data_path: str,
     output_dir: str,
     unfreeze_rank_ratio: float,
-    batch_size: int,
+    effective_batch_size: int,
     max_tokens_per_gpu: int,
     max_seq_len: int,
     learning_rate: float,
@@ -435,7 +439,7 @@ def osft(
     lr_scheduler_kwargs: dict[str, str] | None = None,
     checkpoint_at_epoch: bool | None = None,
     save_final_checkpoint: bool | None = None,
-    epochs: int | None = None,
+    num_epochs: int | None = None,
     # Torchrun parameters for multi-node support
     nproc_per_node: int | None = None,
     nnodes: int | None = None,
@@ -452,7 +456,7 @@ def osft(
         data_path=data_path,
         output_dir=output_dir,
         unfreeze_rank_ratio=unfreeze_rank_ratio,
-        batch_size=batch_size,
+        effective_batch_size=effective_batch_size,
         max_tokens_per_gpu=max_tokens_per_gpu,
         max_seq_len=max_seq_len,
         learning_rate=learning_rate,
@@ -466,7 +470,7 @@ def osft(
         lr_scheduler_kwargs=lr_scheduler_kwargs,
         checkpoint_at_epoch=checkpoint_at_epoch,
         save_final_checkpoint=save_final_checkpoint,
-        epochs=epochs,
+        num_epochs=num_epochs,
         nproc_per_node=nproc_per_node,
         nnodes=nnodes,
         node_rank=node_rank,

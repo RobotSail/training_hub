@@ -45,10 +45,10 @@ class HyperParams:
     MAX_SEQ_LEN = 8192
     OSFT_LEARNING_RATE = 5e-6  # learning rate for OSFT experiments
     SFT_LEARNING_RATE = 5e-6   # learning rate for SFT experiments
-    NUM_EPOCHS = 1
+    NUM_EPOCHS = 2
     
     # Learning rate scheduler
-    LR_SCHEDULER = "constant"
+    LR_SCHEDULER = "cosine"
     WARMUP_STEPS = 0
     
     # Hardware/optimization settings

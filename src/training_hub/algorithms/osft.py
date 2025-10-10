@@ -56,6 +56,9 @@ class OSFTAlgorithm(Algorithm):
         use_processed_dataset: bool | None = None,
         unmask_messages: bool | None = None,
         data_output_dir: str | None = None,
+        
+        # validation data
+        validation_data_path: str | None = None,
 
         # Torchrun parameters for multi-node support
         nproc_per_node: int | None = None,
@@ -121,6 +124,10 @@ class OSFTAlgorithm(Algorithm):
                 Directory where outputs from data processing will be saved such as intermediate
                 files. When not provided, it defaults to `_internal_data_processing` under the
                 `ckpt_output_dir`.
+            validation_data_path (str):
+                Path to the validation data. When provided, this will be used for validation
+                instead of splitting the training data. The validation data should be in the
+                same format as the training data.
             nproc_per_node (int): Number of processes (GPUs) per node for distributed training.
             nnodes (int): Total number of nodes for distributed training.
             node_rank (int): Rank of this node (0 to nnodes-1) for distributed training. 
@@ -155,6 +162,7 @@ class OSFTAlgorithm(Algorithm):
             'use_processed_dataset': use_processed_dataset,
             'unmask_messages': unmask_messages,
             'data_output_dir': data_output_dir,
+            'validation_data_path': validation_data_path,
             
             # scheduler params
             'lr_scheduler': lr_scheduler,
@@ -222,6 +230,7 @@ class OSFTAlgorithm(Algorithm):
             'use_processed_dataset': bool,
             'unmask_messages': bool,
             'data_output_dir': str,
+            'validation_data_path': str,
             'nproc_per_node': int,
             'nnodes': int,
             'node_rank': int,
@@ -353,6 +362,18 @@ class MiniTrainerOSFTBackend(Backend):
             unmask_messages=algorithm_params.get('unmask_messages', False),
         )
 
+        # Process validation data if provided
+        validation_ready_data_path = None
+        if algorithm_params.get('validation_data_path'):
+            validation_ready_data_path = self._process_data(
+                data_path=algorithm_params['validation_data_path'],
+                model_name_or_path=algorithm_params['model_name_or_path'],
+                output_dir=os.path.join(data_output_dir, 'validation'),
+                max_seq_len=algorithm_params['max_seq_len'],
+                num_cpu_procs=8,
+                use_processed_dataset=algorithm_params.get('use_processed_dataset', False),
+                unmask_messages=algorithm_params.get('unmask_messages', False),
+            )
 
         # Separate parameters into their respective dataclass fields
         torchrun_args_fields = {f.name for f in fields(TorchrunArgs)}
@@ -361,6 +382,8 @@ class MiniTrainerOSFTBackend(Backend):
         # adjust arguments to align with the API definition 
         training_args_pre = {k: v for k, v in algorithm_params.items() if k in training_args_fields and v is not None}
         training_args_pre['data_path'] = training_ready_data_path  # replaces raw data path with processed
+        if validation_ready_data_path:
+            training_args_pre['validation_data_path'] = validation_ready_data_path
 
         # mini trainer can support multiple modes, but we don't expose this feature by default
         # to prevent the current API from becoming overly complicated
@@ -453,6 +476,7 @@ def osft(
     use_liger: bool | None = None,
     use_processed_dataset: bool | None = None,
     unmask_messages: bool | None = None,
+    validation_data_path: str | None = None,
     lr_scheduler: str | None = None,
     warmup_steps: int | None = None,
     lr_scheduler_kwargs: dict[str, str] | None = None,
@@ -485,6 +509,7 @@ def osft(
         use_liger=use_liger,
         use_processed_dataset=use_processed_dataset,
         unmask_messages=unmask_messages,
+        validation_data_path=validation_data_path,
         lr_scheduler=lr_scheduler,
         warmup_steps=warmup_steps,
         lr_scheduler_kwargs=lr_scheduler_kwargs,

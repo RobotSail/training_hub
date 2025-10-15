@@ -1,0 +1,31 @@
+from training_hub import osft
+
+osft(
+    model_path="moonshotai/Moonlight-16B-A3B-Instruct",
+    # data_path="/mnt/nvme0n1/datasets/quality-knowledge2.0/combined_cut_50x.jsonl/combined_cut_50x.jsonl",
+    # data_path="train_moonlight_train_input_ids.jsonl",
+    data_path="/mnt/vde/workspace/osilkin/stashed-data/muon-quality/train_moonlight_train_input_ids.jsonl/data.jsonl",
+    use_processed_dataset=True,
+    checkpoint_at_epoch=False,
+    save_final_checkpoint=True,
+    training_mode="step",
+    max_steps=10,
+    nproc_per_node=8,
+    nnodes=1,
+    osft=False,
+    effective_batch_size=128,
+    learning_rate=5e-6,
+    max_tokens_per_gpu=10_000,
+    max_seq_len=8192,
+    seed=67,
+    lr_scheduler='constant',
+    unfreeze_rank_ratio=0.420,
+    use_liger=False,
+    num_epochs=1,
+    data_output_dir='/dev/shm',
+    ckpt_output_dir='/mnt/nvme3n1/checkpoints/test-moonlight',
+    wandb_project_name="moonlight-test",
+    wandb_run_name="moonlight-v1",
+    validation_data_path="/mnt/vde/workspace/osilkin/stashed-data/muon-quality/val_moonlight_val_input_ids.jsonl/data.jsonl",
+    
+)

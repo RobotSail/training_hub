@@ -352,12 +352,16 @@ class MiniTrainerOSFTBackend(Backend):
         
         # since mini trainer itself does not process data, we delegate this to
         # a separate backend, and expect to receive the correct data path
+        if 'moonlight' in algorithm_params['model_name_or_path'].lower():
+            num_cpu_procs = 1
+        else:
+            num_cpu_procs = 8
         training_ready_data_path = self._process_data(
             data_path=algorithm_params['data_path'],  # should be there
             model_name_or_path=algorithm_params['model_name_or_path'],  # should be there
             output_dir=data_output_dir,
             max_seq_len=algorithm_params['max_seq_len'],
-            num_cpu_procs=8,                                # this is a safe default
+            num_cpu_procs=num_cpu_procs,                                # this is a safe default
             use_processed_dataset=algorithm_params.get('use_processed_dataset', False),
             unmask_messages=algorithm_params.get('unmask_messages', False),
         )
@@ -447,6 +451,7 @@ class MiniTrainerOSFTBackend(Backend):
             model_path=model_name_or_path,
             max_seq_len=max_seq_len,
             num_cpu_procs=num_cpu_procs,
+            trust_remote_code=True,
         )
 
         # above function will save to this file, so we pass this to the trainer

@@ -34,7 +34,7 @@ class OSFTAlgorithm(Algorithm):
 
         # patterns that we want to match against when selecting
         # modules for OSFT
-        target_patterns: list[str] | None = None,  
+        target_patterns: list[str] | None = None,
 
         # settings for training mode
         seed: int | None = None,
@@ -42,13 +42,13 @@ class OSFTAlgorithm(Algorithm):
 
         # learning rate scheduler
         lr_scheduler: str = None,
-        warmup_steps: int = None, 
+        warmup_steps: int = None,
         lr_scheduler_kwargs: dict[str, str] | None = None,
 
         # checkpointing
         checkpoint_at_epoch: bool | None = None,
         save_final_checkpoint: bool | None = None,
- 
+
         # parameters for the training mode
         num_epochs: int | None = None,
 
@@ -56,6 +56,10 @@ class OSFTAlgorithm(Algorithm):
         use_processed_dataset: bool | None = None,
         unmask_messages: bool | None = None,
         data_output_dir: str | None = None,
+
+        # Multi-phase training support
+        data_paths: list[str] | None = None,
+        reset_optimizer_between_phases: bool | None = None,
 
         # Torchrun parameters for multi-node support
         nproc_per_node: int | None = None,
@@ -126,6 +130,11 @@ class OSFTAlgorithm(Algorithm):
             node_rank (int): Rank of this node (0 to nnodes-1) for distributed training. 
             rdzv_id (int): Unique job ID for rendezvous in distributed training.
             rdzv_endpoint (str): Master node endpoint for multi-node training.
+            data_paths (list[str]):
+                List of data paths for multi-phase training. When provided, training runs in phases
+                with separate datasets, resetting optimizer and scheduler between phases.
+            reset_optimizer_between_phases (bool):
+                When True and data_paths is provided, reset optimizer and scheduler between training phases.
             **kwargs: Additional parameters passed to the backend.
 
         Returns:
@@ -150,16 +159,16 @@ class OSFTAlgorithm(Algorithm):
 
         optional_params = {
             'target_patterns': target_patterns,
-            
+
             # for data processing
             'use_processed_dataset': use_processed_dataset,
             'unmask_messages': unmask_messages,
             'data_output_dir': data_output_dir,
-            
+
             # scheduler params
             'lr_scheduler': lr_scheduler,
             'lr_scheduler_kwargs': lr_scheduler_kwargs,
-            'warmup_steps': warmup_steps, 
+            'warmup_steps': warmup_steps,
 
             # checkpointing settings
             'checkpoint_at_epoch': checkpoint_at_epoch,
@@ -167,8 +176,12 @@ class OSFTAlgorithm(Algorithm):
 
             'num_epochs': num_epochs,
 
-            'use_liger': use_liger, 
+            'use_liger': use_liger,
             'seed': seed,
+
+            # multi-phase training
+            'data_paths': data_paths,
+            'reset_optimizer_between_phases': reset_optimizer_between_phases,
 
             # torchrun params
             'nproc_per_node': nproc_per_node,
@@ -222,6 +235,8 @@ class OSFTAlgorithm(Algorithm):
             'use_processed_dataset': bool,
             'unmask_messages': bool,
             'data_output_dir': str,
+            'data_paths': list[str],
+            'reset_optimizer_between_phases': bool,
             'nproc_per_node': int,
             'nnodes': int,
             'node_rank': int,
@@ -340,27 +355,52 @@ class MiniTrainerOSFTBackend(Backend):
         data_output_dir = algorithm_params.get('data_output_dir', None)
         if data_output_dir is None:
             data_output_dir = os.path.join(algorithm_params['output_dir'], '_internal_data_processing')
-        
-        # since mini trainer itself does not process data, we delegate this to
-        # a separate backend, and expect to receive the correct data path
-        training_ready_data_path = self._process_data(
-            data_path=algorithm_params['data_path'],  # should be there
-            model_name_or_path=algorithm_params['model_name_or_path'],  # should be there
-            output_dir=data_output_dir,
-            max_seq_len=algorithm_params['max_seq_len'],
-            num_cpu_procs=8,                                # this is a safe default
-            use_processed_dataset=algorithm_params.get('use_processed_dataset', False),
-            unmask_messages=algorithm_params.get('unmask_messages', False),
-        )
+
+        # Check if multi-phase training is enabled
+        data_paths_list = algorithm_params.get('data_paths', None)
+        if data_paths_list is not None and len(data_paths_list) > 0:
+            # Multi-phase training: process each data path
+            training_ready_data_paths = []
+            for phase_idx, phase_data_path in enumerate(data_paths_list):
+                phase_output_dir = os.path.join(data_output_dir, f'phase_{phase_idx}')
+                processed_path = self._process_data(
+                    data_path=phase_data_path,
+                    model_name_or_path=algorithm_params['model_name_or_path'],
+                    output_dir=phase_output_dir,
+                    max_seq_len=algorithm_params['max_seq_len'],
+                    num_cpu_procs=8,
+                    use_processed_dataset=algorithm_params.get('use_processed_dataset', False),
+                    unmask_messages=algorithm_params.get('unmask_messages', False),
+                )
+                training_ready_data_paths.append(processed_path)
+        else:
+            # Single-phase training: process single data path
+            training_ready_data_path = self._process_data(
+                data_path=algorithm_params['data_path'],  # should be there
+                model_name_or_path=algorithm_params['model_name_or_path'],  # should be there
+                output_dir=data_output_dir,
+                max_seq_len=algorithm_params['max_seq_len'],
+                num_cpu_procs=8,                                # this is a safe default
+                use_processed_dataset=algorithm_params.get('use_processed_dataset', False),
+                unmask_messages=algorithm_params.get('unmask_messages', False),
+            )
 
 
         # Separate parameters into their respective dataclass fields
         torchrun_args_fields = {f.name for f in fields(TorchrunArgs)}
         training_args_fields = {f.name for f in fields(TrainingArgs)}
 
-        # adjust arguments to align with the API definition 
+        # adjust arguments to align with the API definition
         training_args_pre = {k: v for k, v in algorithm_params.items() if k in training_args_fields and v is not None}
-        training_args_pre['data_path'] = training_ready_data_path  # replaces raw data path with processed
+
+        # Set data path(s) based on mode
+        if data_paths_list is not None and len(data_paths_list) > 0:
+            # Multi-phase: use processed data paths
+            training_args_pre['data_paths'] = training_ready_data_paths
+            training_args_pre['data_path'] = ""  # Clear single path when using multiple
+        else:
+            # Single-phase: use single processed data path
+            training_args_pre['data_path'] = training_ready_data_path
 
         # mini trainer can support multiple modes, but we don't expose this feature by default
         # to prevent the current API from becoming overly complicated
@@ -459,6 +499,9 @@ def osft(
     checkpoint_at_epoch: bool | None = None,
     save_final_checkpoint: bool | None = None,
     num_epochs: int | None = None,
+    # Multi-phase training parameters
+    data_paths: list[str] | None = None,
+    reset_optimizer_between_phases: bool | None = None,
     # Torchrun parameters for multi-node support
     nproc_per_node: int | None = None,
     nnodes: int | None = None,
@@ -468,7 +511,7 @@ def osft(
     **kwargs
 ) -> any:
     from . import create_algorithm
-    
+
     algorithm = create_algorithm('osft', backend)
     return algorithm.train(
         model_path=model_path,
@@ -491,6 +534,8 @@ def osft(
         checkpoint_at_epoch=checkpoint_at_epoch,
         save_final_checkpoint=save_final_checkpoint,
         num_epochs=num_epochs,
+        data_paths=data_paths,
+        reset_optimizer_between_phases=reset_optimizer_between_phases,
         nproc_per_node=nproc_per_node,
         nnodes=nnodes,
         node_rank=node_rank,

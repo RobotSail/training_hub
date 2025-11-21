@@ -19,7 +19,7 @@
 ## Support Matrix
 
 | Algorithm | InstructLab-Training | RHAI Innovation Mini-Trainer | PEFT | Unsloth | VERL | Status |
-|-----------|---------------------|---------------|------|------|--------|
+|-----------|----------------------|------------------------------|------|---------|------|--------|
 | **Supervised Fine-tuning (SFT)** | ✅ | - | - | - | - | Implemented |
 | Continual Learning (OSFT) | 🔄 | ✅ | 🔄 | - | - | Implemented |
 | **Low-Rank Adaptation (LoRA) + SFT** | - | - | - | ✅ | - | Implemented |

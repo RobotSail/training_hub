@@ -33,7 +33,7 @@
 
 ## Implemented Algorithms
 
-### [Supervised Fine-tuning (SFT)](/algorithms/sft)
+### [Supervised Fine-tuning (SFT)](./algorithms/sft)
 
 Fine-tune language models on supervised datasets with support for:
 - Single-node and multi-node distributed training
@@ -55,7 +55,7 @@ result = sft(
 )
 ```
 
-### [Orthogonal Subspace Fine-Tuning (OSFT)](/algorithms/osft)
+### [Orthogonal Subspace Fine-Tuning (OSFT)](./algorithms/osft)
 
 OSFT allows you to fine-tune models while controlling how much of its
 existing behavior to preserve. Currently we have support for:
@@ -84,7 +84,7 @@ result = osft(
 TODO: Port the example document for LoRA usage over into docs and ensure this link points there.
       Currently this link on the website breaks, but changing it to work on the docs site breaks the readme
 -->
-### [Low-Rank Adaptation (LoRA) + SFT](examples/docs/lora_usage.md)
+### [Low-Rank Adaptation (LoRA) + SFT](./examples/docs/lora_usage.md)
 
 
 Parameter-efficient fine-tuning using LoRA with supervised fine-tuning. Features:
@@ -126,7 +126,7 @@ cd training_hub
 pip install -e .
 ```
 
-**For developers:** See the [Development Guide](/DEVELOPING.md) for detailed instructions on setting up your development environment, running local documentation, and contributing to Training Hub.
+**For developers:** See the [Development Guide](./DEVELOPING.md) for detailed instructions on setting up your development environment, running local documentation, and contributing to Training Hub.
 
 
 ### LoRA Support
@@ -172,4 +172,4 @@ uv pip install -e . && uv pip install -e .[cuda] --no-build-isolation
 
 ## Getting Started
 
-For comprehensive tutorials, examples, and documentation, see the [examples directory](/examples/).
+For comprehensive tutorials, examples, and documentation, see the [examples directory](./examples/).

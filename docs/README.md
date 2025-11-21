@@ -18,13 +18,13 @@
 
 ## Support Matrix
 
-| Algorithm | InstructLab-Training | RHAI Innovation Mini-Trainer | PEFT | VERL | Status |
+| Algorithm | InstructLab-Training | RHAI Innovation Mini-Trainer | PEFT | Unsloth | VERL | Status |
 |-----------|---------------------|---------------|------|------|--------|
-| **Supervised Fine-tuning (SFT)** | ✅ | - | - | - | Implemented |
-| Continual Learning (OSFT) | 🔄 | ✅ | 🔄 | - | Implemented |
-| Direct Preference Optimization (DPO) | - | - | - | 🔄 | Planned |
-| Low-Rank Adaptation (LoRA) | 🔄 | - | 🔄 | - | Planned |
-| Group Relative Policy Optimization (GRPO) | - | - | - | 🔄 | Planned |
+| **Supervised Fine-tuning (SFT)** | ✅ | - | - | - | - | Implemented |
+| Continual Learning (OSFT) | 🔄 | ✅ | 🔄 | - | - | Implemented |
+| **Low-Rank Adaptation (LoRA) + SFT** | - | - | - | ✅ | - | Implemented |
+| Direct Preference Optimization (DPO) | - | - | - | - | 🔄 | Planned |
+| Group Relative Policy Optimization (GRPO) | - | - | - | - | 🔄 | Planned |
 
 **Legend:**
 - ✅ Implemented and tested
@@ -80,6 +80,34 @@ result = osft(
     learning_rate=5e-6,
 )
 ```
+<!-- 
+TODO: Port the example document for LoRA usage over into docs and ensure this link points there.
+      Currently this link on the website breaks, but changing it to work on the docs site breaks the readme
+-->
+### [Low-Rank Adaptation (LoRA) + SFT](examples/docs/lora_usage.md)
+
+
+Parameter-efficient fine-tuning using LoRA with supervised fine-tuning. Features:
+- Memory-efficient training with significantly reduced VRAM requirements
+- Single-GPU and multi-GPU distributed training support
+- Unsloth backend for 2x faster training and 70% less memory usage
+- Support for QLoRA (4-bit quantization) for even lower memory usage
+- Compatible with messages and Alpaca dataset formats
+
+```python
+from training_hub import lora_sft
+
+result = lora_sft(
+    model_path="Qwen/Qwen2.5-1.5B-Instruct",
+    data_path="/path/to/data.jsonl",
+    ckpt_output_dir="/path/to/outputs",
+    lora_r=16,
+    lora_alpha=32,
+    num_epochs=3,
+    learning_rate=2e-4
+)
+```
+
 
 ## Installation
 
@@ -99,6 +127,17 @@ pip install -e .
 ```
 
 **For developers:** See the [Development Guide](/DEVELOPING.md) for detailed instructions on setting up your development environment, running local documentation, and contributing to Training Hub.
+
+
+### LoRA Support
+For LoRA training with optimized dependencies:
+```bash
+pip install training-hub[lora]
+# or for development
+pip install -e .[lora]
+```
+
+**Note:** The LoRA extras include Unsloth optimizations and PyTorch-optimized xformers for better performance and compatibility.
 
 ### CUDA Support
 For GPU training with CUDA support:

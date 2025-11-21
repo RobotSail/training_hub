@@ -80,11 +80,8 @@ result = osft(
     learning_rate=5e-6,
 )
 ```
-<!-- 
-TODO: Port the example document for LoRA usage over into docs and ensure this link points there.
-      Currently this link on the website breaks, but changing it to work on the docs site breaks the readme
--->
-### [Low-Rank Adaptation (LoRA) + SFT](./examples/docs/lora_usage.md)
+
+### [Low-Rank Adaptation (LoRA) + SFT](./algorithms/lora)
 
 
 Parameter-efficient fine-tuning using LoRA with supervised fine-tuning. Features:

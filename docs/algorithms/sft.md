@@ -57,9 +57,32 @@ That's it! The `sft()` function handles all the complexity of distributed traini
 
 ### Training Data
 
-SFT requires training data in **messages format** - conversational exchanges between user and assistant. Each training example teaches the model how to respond to specific inputs.
+SFT requires training data in **messages format** - conversational exchanges between user and assistant. Your training data must be a **JSON Lines (.jsonl)** file where each line contains a conversation sample:
 
-The backend only trains on assistant responses by default (instruction-tuning mode), but you can use the `unmask` field to include user messages in the training loss as well (system prompts remain masked).
+```json
+{"messages": [{"role": "system", "content": "You are a helpful assistant."}, {"role": "user", "content": "Hello!"}, {"role": "assistant", "content": "Hi there! How can I help you?"}]}
+{"messages": [{"role": "user", "content": "What is SFT?"}, {"role": "assistant", "content": "SFT stands for Supervised Fine-Tuning..."}]}
+```
+
+**Message Structure:**
+- **`role`**: One of `"system"`, `"user"`, `"assistant"`, or `"pretraining"`
+- **`content`**: The text content of the message
+- **`reasoning_content`** (optional): Additional reasoning traces
+
+**Masking Control with `unmask` Field:**
+
+The backend trains only on assistant responses by default (instruction-tuning mode):
+
+```json
+{"messages": [...]}  // Only assistant responses used for loss
+{"messages": [...], "unmask": false}  // Same as above
+```
+
+For pretraining-style training where all content (except system messages) is used for loss:
+
+```json
+{"messages": [...], "unmask": true}  // All content except system messages used for loss
+```
 
 See [Data Formats](/api/data-formats.md) for complete specifications.
 
@@ -81,6 +104,75 @@ Training Hub automatically handles distributed training across multiple GPUs and
 The backend uses PyTorch's `torchrun` under the hood for robust distributed execution.
 
 See [Distributed Training Guide](/guides/distributed-training.md) for complete multi-node setup instructions.
+
+## Advanced Usage
+
+### Using the Factory Pattern
+
+For more control over the algorithm instance, you can use the factory pattern:
+
+```python
+from training_hub import create_algorithm
+
+# Create an SFT algorithm instance
+sft_algo = create_algorithm('sft', 'instructlab-training')
+
+# Run training
+result = sft_algo.train(
+    model_path="/path/to/your/model",
+    data_path="/path/to/your/training/data",
+    ckpt_output_dir="/path/to/save/checkpoints",
+    num_epochs=2,
+    learning_rate=2e-6
+)
+
+# Check required parameters
+required_params = sft_algo.get_required_params()
+print("Required parameters:", list(required_params.keys()))
+```
+
+### Algorithm Discovery
+
+Explore available algorithms and backends programmatically:
+
+```python
+from training_hub import AlgorithmRegistry
+
+# List all available algorithms
+algorithms = AlgorithmRegistry.list_algorithms()
+print("Available algorithms:", algorithms)
+
+# List backends for SFT
+sft_backends = AlgorithmRegistry.list_backends('sft')
+print("SFT backends:", sft_backends)
+
+# Get algorithm class directly
+SFTAlgorithm = AlgorithmRegistry.get_algorithm('sft')
+```
+
+### Error Handling
+
+```python
+from training_hub import sft, AlgorithmRegistry
+
+try:
+    result = sft(
+        model_path="/valid/model/path",
+        data_path="/valid/data/path",
+        ckpt_output_dir="/valid/output/path"
+    )
+except ValueError as e:
+    print(f"Configuration error: {e}")
+except Exception as e:
+    print(f"Training error: {e}")
+
+# Check if algorithm/backend exists before using
+if 'sft' in AlgorithmRegistry.list_algorithms():
+    print("SFT algorithm is available")
+
+if 'instructlab-training' in AlgorithmRegistry.list_backends('sft'):
+    print("InstructLab Training backend is available")
+```
 
 ## Next Steps
 

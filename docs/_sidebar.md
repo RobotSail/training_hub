@@ -39,6 +39,7 @@
 * Guides
   * [Distributed Training](/guides/distributed-training)
   * [Data Preparation](/guides/data-preparation)
+  * [Runtime Estimates](/guides/runtime-estimates)
   * [Troubleshooting](/guides/troubleshooting)
   * [Extending the Framework](/guides/extending-framework)
 

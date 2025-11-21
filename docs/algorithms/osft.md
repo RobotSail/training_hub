@@ -56,6 +56,50 @@ Your training data uses the same JSONL messages format as SFT:
 
 The model will learn the new medical domain while retaining its general conversational abilities.
 
+## Data Format Requirements
+
+OSFT supports both **processed** and **unprocessed** data formats via the mini-trainer backend.
+
+### Standard Messages Format (Recommended)
+
+Your training data should be a **JSON Lines (.jsonl)** file containing messages:
+
+```json
+{"messages": [{"role": "system", "content": "You are a helpful assistant."}, {"role": "user", "content": "Hello!"}, {"role": "assistant", "content": "Hi there! How can I help you?"}]}
+{"messages": [{"role": "user", "content": "What is OSFT?"}, {"role": "assistant", "content": "OSFT stands for Orthogonal Subspace Fine-Tuning..."}]}
+```
+
+**Message Structure:**
+- **`role`**: One of `"system"`, `"user"`, `"assistant"`, or `"pretraining"`
+- **`content`**: The text content of the message
+- **`reasoning_content`** (optional): Additional reasoning traces
+
+**Masking Control with `unmask_messages` Parameter:**
+
+Standard instruction tuning (default) - only assistant responses used for loss:
+```python
+osft(..., unmask_messages=False)  # Default
+```
+
+Pretraining mode - all content except system messages used for loss:
+```python
+osft(..., unmask_messages=True)
+```
+
+### Pre-processed Dataset Format
+
+If you have pre-processed data with `input_ids` and `labels` fields:
+
+```json
+{"input_ids": [1, 2, 3, ...], "labels": [1, 2, 3, ...]}
+{"input_ids": [4, 5, 6, ...], "labels": [4, 5, 6, ...]}
+```
+
+Use with:
+```python
+osft(..., use_processed_dataset=True)
+```
+
 ## Key Concepts
 
 ### Orthogonal Subspace Learning
@@ -103,6 +147,94 @@ result = osft(
 ```
 
 For general memory management, adjust `max_tokens_per_gpu`, `effective_batch_size`, or `max_seq_len`.
+
+## Advanced Usage
+
+### Using the Factory Pattern
+
+For more control over the algorithm instance, you can use the factory pattern:
+
+```python
+from training_hub import create_algorithm
+
+# Create an OSFT algorithm instance
+osft_algo = create_algorithm('osft', 'mini-trainer')
+
+# Run training
+result = osft_algo.train(
+    model_path="/path/to/your/model",
+    data_path="/path/to/your/training/data.jsonl",
+    ckpt_output_dir="/path/to/save/outputs",
+    unfreeze_rank_ratio=0.25,
+    effective_batch_size=6,
+    max_tokens_per_gpu=3072,
+    max_seq_len=2048,
+    learning_rate=1.5e-5,
+    num_epochs=2
+)
+
+# Check required parameters
+required_params = osft_algo.get_required_params()
+print("Required parameters:", list(required_params.keys()))
+```
+
+### Algorithm Discovery
+
+Explore available algorithms and backends programmatically:
+
+```python
+from training_hub import AlgorithmRegistry
+
+# List all available algorithms
+algorithms = AlgorithmRegistry.list_algorithms()
+print("Available algorithms:", algorithms)
+
+# List backends for OSFT
+osft_backends = AlgorithmRegistry.list_backends('osft')
+print("OSFT backends:", osft_backends)
+
+# Get algorithm class directly
+OSFTAlgorithm = AlgorithmRegistry.get_algorithm('osft')
+```
+
+### Error Handling
+
+```python
+from training_hub import osft, AlgorithmRegistry
+
+try:
+    result = osft(
+        model_path="/valid/model/path",
+        data_path="/valid/data/path",
+        ckpt_output_dir="/valid/output/path",
+        unfreeze_rank_ratio=0.3,
+        effective_batch_size=8,
+        max_tokens_per_gpu=2048,
+        max_seq_len=2048,
+        learning_rate=2e-5
+    )
+except ValueError as e:
+    print(f"Configuration error: {e}")
+except Exception as e:
+    print(f"Training error: {e}")
+
+# Check if algorithm/backend exists before using
+if 'osft' in AlgorithmRegistry.list_algorithms():
+    print("OSFT algorithm is available")
+
+if 'mini-trainer' in AlgorithmRegistry.list_backends('osft'):
+    print("Mini-trainer backend is available")
+```
+
+### Best Practices
+
+1. **unfreeze_rank_ratio**: Start with values between 0.1-0.5. Values >0.5 are rarely needed for general continual-learning regimes.
+
+2. **Memory Management**: OSFT doesn't reduce memory requirements compared to SFT, so adjust `max_tokens_per_gpu` accordingly. For memory-constrained environments or OOMs during model loading, set `osft_memory_efficient_init=True`.
+
+3. **Data Processing**: The algorithm handles data processing automatically. Use `use_processed_dataset=True` only if you have pre-tokenized data.
+
+4. **Continual Learning**: OSFT is particularly effective for adapting instruction-tuned models to new domains without catastrophic forgetting.
 
 ## Next Steps
 

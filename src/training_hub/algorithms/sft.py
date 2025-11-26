@@ -34,7 +34,7 @@ class InstructLabTrainingSFTBackend(Backend):
         document_column_name = training_params.pop('document_column_name', None)
         is_pretraining = training_params.pop('is_pretraining', None)
 
-        if is_pretraining and block_size is not None:
+        if is_pretraining and block_size is None:
             raise ValueError("block_size is required when is_pretraining=True")
 
         if is_pretraining:

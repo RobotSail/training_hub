@@ -1,5 +1,10 @@
 from typing import Any, Dict, Type, Optional
-from instructlab.training import run_training, TorchrunArgs, TrainingArgs
+from instructlab.training import (
+    run_training,
+    TorchrunArgs,
+    TrainingArgs,
+    PretrainingConfig,
+)
 
 from . import Algorithm, Backend, AlgorithmRegistry
 from training_hub import utils
@@ -22,7 +27,25 @@ class InstructLabTrainingSFTBackend(Backend):
         # Map training_hub parameter names to instructlab-training parameter names
         if 'max_tokens_per_gpu' in training_params:
             training_params['max_batch_len'] = training_params.pop('max_tokens_per_gpu')
-        
+
+
+        # Create the pretraining config if it was requested
+        block_size = training_params.pop('block_size', None)
+        document_column_name = training_params.pop('document_column_name', None)
+        is_pretraining = training_params.pop('is_pretraining', None)
+
+        if is_pretraining and block_size is not None:
+            raise ValueError("block_size is required when is_pretraining=True")
+
+        if is_pretraining:
+            pretraining_kwargs: Dict[str, Any] = {}
+            if document_column_name is not None:
+                pretraining_kwargs['document_column_name'] = document_column_name
+            training_params['pretraining_config'] = PretrainingConfig(
+                block_size=block_size,
+                **pretraining_kwargs,
+            )
+
         # Create TrainingArgs with all provided parameters, letting it handle defaults
         training_args = TrainingArgs(**training_params)
         
@@ -59,6 +82,9 @@ class SFTAlgorithm(Algorithm):
               warmup_steps: Optional[int] = None,
               accelerate_full_state_at_epoch: Optional[bool] = None,
               checkpoint_at_epoch: Optional[bool] = None,
+              is_pretraining: Optional[bool] = None,
+              block_size: Optional[int] = None,
+              document_column_name: Optional[str] = None,
               # Torchrun parameters for multi-node support
               nproc_per_node: Optional[str | int] = None,
               nnodes: Optional[int] = None,
@@ -84,6 +110,9 @@ class SFTAlgorithm(Algorithm):
             warmup_steps: Number of warmup steps
             accelerate_full_state_at_epoch: Whether to save full state at epoch for automatic checkpoint resumption
             checkpoint_at_epoch: Whether to checkpoint at each epoch
+            is_pretraining: Enable document-style continual pretraining mode.
+            block_size: Required when `is_pretraining=True`. Token length of each document block.
+            document_column_name: Column name containing raw documents when `is_pretraining=True` (defaults to "document").
             nproc_per_node: Number of processes (GPUs) per node
             nnodes: Total number of nodes
             node_rank: Rank of this node (0 to nnodes-1)
@@ -111,6 +140,9 @@ class SFTAlgorithm(Algorithm):
             'warmup_steps': warmup_steps,
             'accelerate_full_state_at_epoch': accelerate_full_state_at_epoch,
             'checkpoint_at_epoch': checkpoint_at_epoch,
+            'is_pretraining': is_pretraining,
+            'block_size': block_size,
+            'document_column_name': document_column_name,
             'nproc_per_node': nproc_per_node,
             'nnodes': nnodes,
             'node_rank': node_rank,
@@ -151,6 +183,9 @@ class SFTAlgorithm(Algorithm):
             'warmup_steps': int,
             'accelerate_full_state_at_epoch': bool,
             'checkpoint_at_epoch': bool,
+            'is_pretraining': bool,
+            'block_size': int,
+            'document_column_name': str,
             'nproc_per_node': str | int,
             'nnodes': int,
             'node_rank': int,
@@ -181,6 +216,9 @@ def sft(model_path: str,
         warmup_steps: Optional[int] = None,
         accelerate_full_state_at_epoch: Optional[bool] = None,
         checkpoint_at_epoch: Optional[bool] = None,
+        is_pretraining: Optional[bool] = None,
+        block_size: Optional[int] = None,
+        document_column_name: Optional[str] = None,
         # Torchrun parameters for multi-node support
         nproc_per_node: Optional[str | int] = None,
         nnodes: Optional[int] = None,
@@ -207,6 +245,9 @@ def sft(model_path: str,
         warmup_steps: Number of warmup steps
         accelerate_full_state_at_epoch: Whether to save full state at epoch for automatic checkpoint resumption
         checkpoint_at_epoch: Whether to checkpoint at each epoch
+        is_pretraining: Enable document-style continual pretraining mode.
+        block_size: Required when `is_pretraining=True`. Token length of each document block.
+        document_column_name: Column name containing raw documents when `is_pretraining=True`.
         nproc_per_node: Number of processes (GPUs) per node for distributed training
         nnodes: Total number of nodes for distributed training
         node_rank: Rank of this node (0 to nnodes-1) for distributed training
@@ -237,6 +278,9 @@ def sft(model_path: str,
         warmup_steps=warmup_steps,
         accelerate_full_state_at_epoch=accelerate_full_state_at_epoch,
         checkpoint_at_epoch=checkpoint_at_epoch,
+        is_pretraining=is_pretraining,
+        block_size=block_size,
+        document_column_name=document_column_name,
         nproc_per_node=nproc_per_node,
         nnodes=nnodes,
         node_rank=node_rank,

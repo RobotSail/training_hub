@@ -57,6 +57,11 @@ class OSFTAlgorithm(Algorithm):
         unmask_messages: bool | None = None,
         data_output_dir: str | None = None,
 
+        # Pretraining mode parameters
+        is_pretraining: bool | None = None,
+        block_size: int | None = None,
+        document_column_name: str | None = None,
+
         # Torchrun parameters for multi-node support
         nproc_per_node: Literal['auto', 'gpu'] | int | None = None,
         nnodes: int | None = None,
@@ -123,6 +128,17 @@ class OSFTAlgorithm(Algorithm):
                 Directory where outputs from data processing will be saved such as intermediate
                 files. When not provided, it defaults to `_internal_data_processing` under the
                 `ckpt_output_dir`.
+            is_pretraining (bool):
+                Enable pretraining mode. Expects data with {"documents": "text"} format.
+                Data is tokenized without chat templates. Blocking happens in mini-trainer.
+                Mutually exclusive with unmask_messages.
+            block_size (int |
+                None):
+                Block size in tokens for pretraining. Required when is_pretraining=True.
+                Passed to mini-trainer for block-based sampling.
+            document_column_name (str | None):
+                Column name containing raw documents when `is_pretraining=True`.
+                Defaults to "document" when not provided.
             nproc_per_node (Literal['auto', 'gpu'] | int): Number of processes (GPUs) per node for distributed training.
             nnodes (int): Total number of nodes for distributed training.
             node_rank (int): Rank of this node (0 to nnodes-1) for distributed training. 
@@ -140,7 +156,10 @@ class OSFTAlgorithm(Algorithm):
         # param validation
         if not (0.0 <= unfreeze_rank_ratio <= 1.0):
             raise ValueError(f"unfreeze_rank_ratio must be between 0.0 and 1.0, but got {unfreeze_rank_ratio}")
-        
+
+        if is_pretraining and block_size is None:
+            raise ValueError("block_size required when is_pretraining=True")
+ 
 
         required_params = {
             'model_path': model_path,
@@ -160,7 +179,12 @@ class OSFTAlgorithm(Algorithm):
             'use_processed_dataset': use_processed_dataset,
             'unmask_messages': unmask_messages,
             'data_output_dir': data_output_dir,
-            
+
+            # pretraining params
+            'is_pretraining': is_pretraining,
+            'block_size': block_size,
+            'document_column_name': document_column_name,
+
             # scheduler params
             'lr_scheduler': lr_scheduler,
             'lr_scheduler_kwargs': lr_scheduler_kwargs,
@@ -229,6 +253,9 @@ class OSFTAlgorithm(Algorithm):
             'use_processed_dataset': bool,
             'unmask_messages': bool,
             'data_output_dir': str,
+            'is_pretraining': bool,
+            'block_size': int,
+            'document_column_name': str,
             'nproc_per_node': Literal['auto', 'gpu'] | int,
             'nnodes': int,
             'node_rank': int,
@@ -324,7 +351,7 @@ class MiniTrainerOSFTBackend(Backend):
         
         
         """
-        from mini_trainer import run_training, TrainingArgs, TorchrunArgs, TrainingMode
+        from mini_trainer import run_training, TrainingArgs, TorchrunArgs, TrainingMode, PretrainingConfig
 
         # here we translate the parameter names that the algorithm used
         # into those used by the backend
@@ -370,11 +397,27 @@ class MiniTrainerOSFTBackend(Backend):
             num_cpu_procs=8,                                # this is a safe default
             use_processed_dataset=algorithm_params.get('use_processed_dataset', False),
             unmask_messages=algorithm_params.get('unmask_messages', False),
+            is_pretraining=algorithm_params.get('is_pretraining', False),
+            document_column_name=algorithm_params.get('document_column_name'),
         )
 
-        # adjust arguments to align with the API definition 
+        # adjust arguments to align with the API definition
         training_args_pre = {k: v for k, v in algorithm_params.items() if k in training_args_fields and v is not None}
         training_args_pre['data_path'] = training_ready_data_path  # replaces raw data path with processed
+
+
+        # create the pretraining config if it was requested
+        if algorithm_params.get('is_pretraining', False):
+            if (block_size := algorithm_params.get('block_size', None)) is None:
+                raise ValueError("block_size is required when is_pretraining=True")
+            pretraining_kwargs = {}
+            if (document_column := algorithm_params.get('document_column_name')) is not None:
+                pretraining_kwargs['document_column_name'] = document_column
+            pretraining_config = PretrainingConfig(
+                block_size=block_size,
+                **pretraining_kwargs,
+            )
+            training_args_pre['pretraining_config'] = pretraining_config
 
         # mini trainer can support multiple modes, but we don't expose this feature by default
         # to prevent the current API from becoming overly complicated
@@ -393,7 +436,7 @@ class MiniTrainerOSFTBackend(Backend):
         )
     
     def _process_data(
-            self, 
+            self,
             model_name_or_path: str,
             data_path: str,
             output_dir: str,
@@ -401,6 +444,8 @@ class MiniTrainerOSFTBackend(Backend):
             num_cpu_procs: int,
             unmask_messages: bool,
             use_processed_dataset: bool,
+            is_pretraining: bool = False,
+            document_column_name: str | None = None,
         ) -> str:
         """
         Process the data into a format that can be used for training.
@@ -409,7 +454,10 @@ class MiniTrainerOSFTBackend(Backend):
         """
         # mini trainer doesn't do its own data processing, so we use the one from
         # instructlab training
-        from instructlab.training.data_process import process_messages_into_input_ids
+        from instructlab.training.data_process import (
+            process_messages_into_input_ids,
+            process_documents_for_pretraining,
+        )
 
         # if we're using the processed dataset, then we don't need to do any data processing
         if use_processed_dataset:
@@ -418,22 +466,33 @@ class MiniTrainerOSFTBackend(Backend):
         # otherwise we need to process the data
         os.makedirs(output_dir, exist_ok=True)
 
-        # if we received unmask then we need to add that
-        processing_data_path = data_path
-        if unmask_messages:
-            ds = datasets.load_dataset("json", data_files=data_path, split='train')
-            ds = ds.map(lambda _: { "unmask": True }) 
-            processing_data_path = os.path.join(output_dir, 'intermediate_data.jsonl')
-            ds.to_json(processing_data_path)
-        
-        # now we process the data
-        process_messages_into_input_ids(
-            data_path=processing_data_path,
-            data_output_path=output_dir,
-            model_path=model_name_or_path,
-            max_seq_len=max_seq_len,
-            num_cpu_procs=num_cpu_procs,
-        )
+        # Handle pretraining mode
+        if is_pretraining:
+            process_documents_for_pretraining(
+                data_path=data_path,
+                data_output_path=output_dir,
+                model_path=model_name_or_path,
+                num_cpu_procs=num_cpu_procs,
+                document_column_name=document_column_name,
+            )
+        else:
+            # Original instruction tuning flow
+            # if we received unmask then we need to add that
+            processing_data_path = data_path
+            if unmask_messages:
+                ds = datasets.load_dataset("json", data_files=data_path, split='train')
+                ds = ds.map(lambda _: { "unmask": True })
+                processing_data_path = os.path.join(output_dir, 'intermediate_data.jsonl')
+                ds.to_json(processing_data_path)
+
+            # now we process the data
+            process_messages_into_input_ids(
+                data_path=processing_data_path,
+                data_output_path=output_dir,
+                model_path=model_name_or_path,
+                max_seq_len=max_seq_len,
+                num_cpu_procs=num_cpu_procs,
+            )
 
         # above function will save to this file, so we pass this to the trainer
         return os.path.join(output_dir, 'data.jsonl')
@@ -462,6 +521,9 @@ def osft(
     use_liger: bool | None = None,
     use_processed_dataset: bool | None = None,
     unmask_messages: bool | None = None,
+    is_pretraining: bool | None = None,
+    block_size: int | None = None,
+    document_column_name: str | None = None,
     lr_scheduler: str | None = None,
     warmup_steps: int | None = None,
     lr_scheduler_kwargs: dict[str, str] | None = None,
@@ -496,6 +558,9 @@ def osft(
         use_liger=use_liger,
         use_processed_dataset=use_processed_dataset,
         unmask_messages=unmask_messages,
+        is_pretraining=is_pretraining,
+        block_size=block_size,
+        document_column_name=document_column_name,
         lr_scheduler=lr_scheduler,
         warmup_steps=warmup_steps,
         lr_scheduler_kwargs=lr_scheduler_kwargs,

@@ -410,12 +410,8 @@ class MiniTrainerOSFTBackend(Backend):
         if algorithm_params.get('is_pretraining', False):
             if (block_size := algorithm_params.get('block_size', None)) is None:
                 raise ValueError("block_size is required when is_pretraining=True")
-            pretraining_kwargs = {}
-            if (document_column := algorithm_params.get('document_column_name')) is not None:
-                pretraining_kwargs['document_column_name'] = document_column
             pretraining_config = PretrainingConfig(
                 block_size=block_size,
-                **pretraining_kwargs,
             )
             training_args_pre['pretraining_config'] = pretraining_config
 
@@ -496,9 +492,6 @@ class MiniTrainerOSFTBackend(Backend):
 
         # above function will save to this file, so we pass this to the trainer
         return os.path.join(output_dir, 'data.jsonl')
-    
-            
-
 
 
 AlgorithmRegistry.register_algorithm('osft', OSFTAlgorithm)

@@ -42,6 +42,11 @@ class OSFTAlgorithm(Algorithm):
         lr_scheduler: str = None,
         warmup_steps: int = None,
         lr_scheduler_kwargs: dict[str, str] | None = None,
+        # AdamW optimizer parameters
+        beta1: float | None = None,
+        beta2: float | None = None,
+        eps: float | None = None,
+        weight_decay: float | None = None,
         # checkpointing
         checkpoint_at_epoch: bool | None = None,
         save_final_checkpoint: bool | None = None,
@@ -106,6 +111,10 @@ class OSFTAlgorithm(Algorithm):
             lr_scheduler (str): Name of the PyTorchlearning rate scheduler to use.
             warmup_steps (int): Number of warmup steps for the learning rate scheduler.
             lr_scheduler_kwargs (dict[str, str]): Additional scheduler parameters.
+            beta1 (float): AdamW optimizer beta1 coefficient (momentum).
+            beta2 (float): AdamW optimizer beta2 coefficient (RMSprop).
+            eps (float): AdamW optimizer epsilon for numerical stability.
+            weight_decay (float): AdamW optimizer weight decay coefficient.
             checkpoint_at_epoch (bool): Whether to checkpoint at each epoch.
             save_final_checkpoint (bool): Whether to save final checkpoint once training is complete.
             num_epochs (int): Number of epochs to train for.
@@ -193,6 +202,11 @@ class OSFTAlgorithm(Algorithm):
             "lr_scheduler": lr_scheduler,
             "lr_scheduler_kwargs": lr_scheduler_kwargs,
             "warmup_steps": warmup_steps,
+            # AdamW optimizer parameters
+            "beta1": beta1,
+            "beta2": beta2,
+            "eps": eps,
+            "weight_decay": weight_decay,
             # checkpointing settings
             "checkpoint_at_epoch": checkpoint_at_epoch,
             "save_final_checkpoint": save_final_checkpoint,
@@ -249,6 +263,11 @@ class OSFTAlgorithm(Algorithm):
             "lr_scheduler": str,
             "warmup_steps": int,
             "lr_scheduler_kwargs": dict,
+            # AdamW optimizer parameters
+            "beta1": float,
+            "beta2": float,
+            "eps": float,
+            "weight_decay": float,
             "checkpoint_at_epoch": bool,
             "save_final_checkpoint": bool,
             "num_epochs": int,
@@ -427,8 +446,6 @@ class MiniTrainerOSFTBackend(Backend):
         )
 
         # Construct PretrainingConfig for mini-trainer if pretraining mode
-        from mini_trainer import PretrainingConfig
-
         if algorithm_params.get("is_pretraining", False):
             if (block_size := algorithm_params.get("block_size", None)) is None:
                 raise ValueError("block_size is required when is_pretraining=True")
@@ -489,12 +506,17 @@ class MiniTrainerOSFTBackend(Backend):
 
         # Handle pretraining mode
         if is_pretraining:
+            # pass any optional kwargs as-needed
+            additional_kwargs = {}
+            if document_column_name is not None:
+                additional_kwargs["document_column_name"] = document_column_name
+
             process_documents_for_pretraining(
                 data_path=data_path,
                 data_output_path=output_dir,
                 model_path=model_name_or_path,
                 num_cpu_procs=num_cpu_procs,
-                document_column_name=document_column_name,
+                **additional_kwargs,
             )
         else:
             # Original instruction tuning flow
@@ -548,6 +570,11 @@ def osft(
     lr_scheduler: str | None = None,
     warmup_steps: int | None = None,
     lr_scheduler_kwargs: dict[str, str] | None = None,
+    # AdamW optimizer parameters
+    beta1: float | None = None,
+    beta2: float | None = None,
+    eps: float | None = None,
+    weight_decay: float | None = None,
     checkpoint_at_epoch: bool | None = None,
     save_final_checkpoint: bool | None = None,
     num_epochs: int | None = None,
@@ -563,7 +590,7 @@ def osft(
 ) -> any:
     from . import create_algorithm
 
-    algorithm = create_algorithm("osft", backend)
+    algorithm: OSFTAlgorithm = create_algorithm("osft", backend)
     return algorithm.train(
         model_path=model_path,
         data_path=data_path,
@@ -585,6 +612,10 @@ def osft(
         lr_scheduler=lr_scheduler,
         warmup_steps=warmup_steps,
         lr_scheduler_kwargs=lr_scheduler_kwargs,
+        beta1=beta1,
+        beta2=beta2,
+        eps=eps,
+        weight_decay=weight_decay,
         checkpoint_at_epoch=checkpoint_at_epoch,
         save_final_checkpoint=save_final_checkpoint,
         num_epochs=num_epochs,

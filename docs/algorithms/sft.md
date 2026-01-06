@@ -53,9 +53,9 @@ Your training data should be in JSONL format with messages:
 
 That's it! The `sft()` function handles all the complexity of distributed training, data processing, and checkpointing automatically.
 
-### Continual Pretraining (Optional)
+### Pretraining Mode (Optional)
 
-Need to keep feeding your base model new raw documents before instruction tuning? Enable continual pretraining by providing a `block_size`. Training Hub will automatically switch to the document-style data processing pipeline from `instructlab-training`.
+To train on raw documents instead of chat-formatted data, enable pretraining mode by setting `is_pretraining=True` and specifying a `block_size`.
 
 ```python
 result = sft(
@@ -63,19 +63,23 @@ result = sft(
     data_path="./raw_documents.jsonl",
     ckpt_output_dir="./checkpoints",
     is_pretraining=True,
-    block_size=512,
+    block_size=2048,
     document_column_name="text",  # optional, defaults to "document"
 )
 ```
 
-Each line in `raw_documents.jsonl` should contain the raw text under the specified column name, for example:
+Your data should be a JSONL file where each line contains document text:
 
 ```json
-{"text": "First article ..."}
-{"text": "Second article ..."}
+{"text": "First document..."}
+{"text": "Second document..."}
 ```
 
-See the [Continual Pretraining Guide](/guides/continual-pretraining.md) for more details and best practices.
+| Parameter | Required | Description |
+|-----------|----------|-------------|
+| `is_pretraining` | Yes | Set to `True` to enable pretraining mode |
+| `block_size` | Yes | Number of tokens per training block (recommend starting with 2048) |
+| `document_column_name` | No | Column name in JSONL file (default: `"document"`) |
 
 ## Key Concepts
 

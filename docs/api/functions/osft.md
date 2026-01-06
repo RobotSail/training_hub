@@ -76,7 +76,7 @@ def osft(
 
 | Parameter | Type | Default | Description |
 |-----------|------|---------|-------------|
-| `is_pretraining` | `bool` | `None` | When `True`, switches to document-style continual pretraining mode. |
+| `is_pretraining` | `bool` | `None` | When `True`, enables pretraining mode for training on raw documents. |
 | `block_size` | `int` | `None` | Required when `is_pretraining=True`. Token length of each document block. |
 | `document_column_name` | `str` | `"document"` | Column containing raw documents when `is_pretraining=True`. |
 

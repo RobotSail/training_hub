@@ -86,16 +86,16 @@ Instruction-style pretraining (all conversational content except system messages
 osft(..., unmask_messages=True)
 ```
 
-### Document-Style Continual Pretraining
+### Pretraining Mode
 
-For continual pretraining on raw documents (no chat structure), provide a JSONL file where each line contains the full text under a chosen column:
+To train on raw documents instead of chat-formatted data, enable pretraining mode by setting `is_pretraining=True` and specifying a `block_size`.
+
+Your data should be a JSONL file where each line contains document text:
 
 ```json
-{"document": "First knowledge base article..."}
-{"document": "Second article..."}
+{"document": "First document..."}
+{"document": "Second document..."}
 ```
-
-Then enable document-style pretraining:
 
 ```python
 result = osft(
@@ -107,15 +107,19 @@ result = osft(
     max_tokens_per_gpu=2048,
     max_seq_len=2048,
     learning_rate=2e-5,
-    
-    # set this to true in order to enable pretraining mode
+
+    # Enable pretraining mode
     is_pretraining=True,
-    block_size=512,
+    block_size=2048,
     document_column_name="text",  # optional; defaults to "document"
 )
 ```
 
-`block_size` controls how many tokens go into each chunk, and `document_column_name` lets you target a different field (e.g., `"text"`).
+| Parameter | Required | Description |
+|-----------|----------|-------------|
+| `is_pretraining` | Yes | Set to `True` to enable pretraining mode |
+| `block_size` | Yes | Number of tokens per training block (recommend starting with 2048) |
+| `document_column_name` | No | Column name in JSONL file (default: `"document"`) |
 
 ### Pre-processed Dataset Format
 

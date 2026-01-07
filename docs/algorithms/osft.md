@@ -81,7 +81,7 @@ Standard instruction tuning (default) - only assistant responses used for loss:
 osft(..., unmask_messages=False)  # Default
 ```
 
-Instruction-style pretraining (all conversational content except system messages):
+Instruction-style pretraining (unmask all conversational content except system messages):
 ```python
 osft(..., unmask_messages=True)
 ```

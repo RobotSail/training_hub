@@ -106,7 +106,7 @@ Executes the OSFT training process.
 
 | Parameter | Type | Default | Description |
 |-----------|------|---------|-------------|
-| `is_pretraining` | `bool` | `None` | When `True`, enables pretraining mode for training on raw documents. |
+| `is_pretraining` | `bool` | `False` | When `True`, enables pretraining mode for training on raw documents. |
 | `block_size` | `int` | `None` | Required when `is_pretraining=True`. Number of tokens per training block (recommend starting with 2048). |
 | `document_column_name` | `str` | `"document"` | Column containing raw documents when `is_pretraining=True`. |
 

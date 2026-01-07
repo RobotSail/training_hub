@@ -134,8 +134,7 @@ class OSFTAlgorithm(Algorithm):
                 Enable pretraining mode. Expects data with {"documents": "text"} format.
                 Data is tokenized without chat templates. Blocking happens in mini-trainer.
                 Mutually exclusive with unmask_messages.
-            block_size (int |
-                None):
+            block_size (int | None):
                 Block size in tokens for pretraining. Required when is_pretraining=True.
                 Passed to mini-trainer for block-based sampling.
             document_column_name (str | None):

@@ -168,9 +168,6 @@ class OSFTAlgorithm(Algorithm):
                 'Cannot use both is_pretraining=True and unmask_messages=True. These are mutually exclusive modes.'
             )
 
-        if is_pretraining and block_size is None:
-            raise ValueError('block_size required when is_pretraining=True')
-
         if not is_pretraining and block_size is not None:
             warnings.warn('block_size only valid with is_pretraining=True')
 

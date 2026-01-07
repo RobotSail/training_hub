@@ -61,7 +61,7 @@ class OSFTAlgorithm(Algorithm):
         block_size: int | None = None,
         document_column_name: str | None = None,
         # Torchrun parameters for multi-node support
-        nproc_per_node: Literal["auto", "gpu"] | int | None = None,
+        nproc_per_node: Literal['auto', 'gpu'] | int | None = None,
         nnodes: int | None = None,
         node_rank: int | None = None,
         rdzv_id: str | int | None = None,
@@ -157,73 +157,73 @@ class OSFTAlgorithm(Algorithm):
 
         # param validation
         if not (0.0 <= unfreeze_rank_ratio <= 1.0):
-            raise ValueError(f"unfreeze_rank_ratio must be between 0.0 and 1.0, but got {unfreeze_rank_ratio}")
+            raise ValueError(f'unfreeze_rank_ratio must be between 0.0 and 1.0, but got {unfreeze_rank_ratio}')
 
         if is_pretraining and block_size is None:
-            raise ValueError("block_size required when is_pretraining=True")
+            raise ValueError('block_size required when is_pretraining=True')
 
         # Validate pretraining parameters
         if is_pretraining and unmask_messages:
             raise ValueError(
-                "Cannot use both is_pretraining=True and unmask_messages=True. These are mutually exclusive modes."
+                'Cannot use both is_pretraining=True and unmask_messages=True. These are mutually exclusive modes.'
             )
 
         if is_pretraining and block_size is None:
-            raise ValueError("block_size required when is_pretraining=True")
+            raise ValueError('block_size required when is_pretraining=True')
 
         if not is_pretraining and block_size is not None:
-            warnings.warn("block_size only valid with is_pretraining=True")
+            warnings.warn('block_size only valid with is_pretraining=True')
 
         required_params = {
-            "model_path": model_path,
-            "data_path": data_path,
-            "effective_batch_size": effective_batch_size,
-            "max_tokens_per_gpu": max_tokens_per_gpu,
-            "max_seq_len": max_seq_len,
-            "learning_rate": learning_rate,
-            "ckpt_output_dir": ckpt_output_dir,
-            "unfreeze_rank_ratio": unfreeze_rank_ratio,
+            'model_path': model_path,
+            'data_path': data_path,
+            'effective_batch_size': effective_batch_size,
+            'max_tokens_per_gpu': max_tokens_per_gpu,
+            'max_seq_len': max_seq_len,
+            'learning_rate': learning_rate,
+            'ckpt_output_dir': ckpt_output_dir,
+            'unfreeze_rank_ratio': unfreeze_rank_ratio,
         }
 
         optional_params = {
-            "target_patterns": target_patterns,
+            'target_patterns': target_patterns,
             # for data processing
-            "use_processed_dataset": use_processed_dataset,
-            "unmask_messages": unmask_messages,
-            "data_output_dir": data_output_dir,
+            'use_processed_dataset': use_processed_dataset,
+            'unmask_messages': unmask_messages,
+            'data_output_dir': data_output_dir,
             # pretraining params
-            "is_pretraining": is_pretraining,
-            "block_size": block_size,
-            "document_column_name": document_column_name,
+            'is_pretraining': is_pretraining,
+            'block_size': block_size,
+            'document_column_name': document_column_name,
             # scheduler params
-            "lr_scheduler": lr_scheduler,
-            "lr_scheduler_kwargs": lr_scheduler_kwargs,
-            "warmup_steps": warmup_steps,
+            'lr_scheduler': lr_scheduler,
+            'lr_scheduler_kwargs': lr_scheduler_kwargs,
+            'warmup_steps': warmup_steps,
             # AdamW optimizer parameters
-            "beta1": beta1,
-            "beta2": beta2,
-            "eps": eps,
-            "weight_decay": weight_decay,
+            'beta1': beta1,
+            'beta2': beta2,
+            'eps': eps,
+            'weight_decay': weight_decay,
             # checkpointing settings
-            "checkpoint_at_epoch": checkpoint_at_epoch,
-            "save_final_checkpoint": save_final_checkpoint,
-            "num_epochs": num_epochs,
-            "use_liger": use_liger,
-            "seed": seed,
+            'checkpoint_at_epoch': checkpoint_at_epoch,
+            'save_final_checkpoint': save_final_checkpoint,
+            'num_epochs': num_epochs,
+            'use_liger': use_liger,
+            'seed': seed,
             # torchrun params
-            "nproc_per_node": nproc_per_node,
-            "nnodes": nnodes,
-            "node_rank": node_rank,
-            "rdzv_id": rdzv_id,
-            "rdzv_endpoint": rdzv_endpoint,
-            "master_addr": master_addr,
-            "master_port": master_port,
+            'nproc_per_node': nproc_per_node,
+            'nnodes': nnodes,
+            'node_rank': node_rank,
+            'rdzv_id': rdzv_id,
+            'rdzv_endpoint': rdzv_endpoint,
+            'master_addr': master_addr,
+            'master_port': master_port,
         }
 
         # now do validation now that we've set everything up
         for required_param in self.get_required_params().keys():
             if required_param not in required_params:
-                raise ValueError(f"error: required parameter not provided: {required_param}")
+                raise ValueError(f'error: required parameter not provided: {required_param}')
 
         # validate types of all parameters
         self._validate_param_types(required_params)
@@ -239,46 +239,46 @@ class OSFTAlgorithm(Algorithm):
     def get_required_params(self) -> dict[str, type]:
         """Return dictionary of required parameter names and their types."""
         return {
-            "model_path": str,
-            "data_path": str,
-            "unfreeze_rank_ratio": float,
-            "effective_batch_size": int,
-            "max_tokens_per_gpu": int,
-            "max_seq_len": int,
-            "learning_rate": float,
-            "ckpt_output_dir": str,
+            'model_path': str,
+            'data_path': str,
+            'unfreeze_rank_ratio': float,
+            'effective_batch_size': int,
+            'max_tokens_per_gpu': int,
+            'max_seq_len': int,
+            'learning_rate': float,
+            'ckpt_output_dir': str,
         }
 
     def get_optional_params(self) -> dict[str, type]:
         """Return dictionary of optional parameter names and their types."""
         return {
-            "target_patterns": list[str],
-            "seed": int,
-            "use_liger": bool,
-            "lr_scheduler": str,
-            "warmup_steps": int,
-            "lr_scheduler_kwargs": dict,
+            'target_patterns': list[str],
+            'seed': int,
+            'use_liger': bool,
+            'lr_scheduler': str,
+            'warmup_steps': int,
+            'lr_scheduler_kwargs': dict,
             # AdamW optimizer parameters
-            "beta1": float,
-            "beta2": float,
-            "eps": float,
-            "weight_decay": float,
-            "checkpoint_at_epoch": bool,
-            "save_final_checkpoint": bool,
-            "num_epochs": int,
-            "use_processed_dataset": bool,
-            "unmask_messages": bool,
-            "data_output_dir": str,
-            "is_pretraining": bool,
-            "block_size": int,
-            "document_column_name": str,
-            "nproc_per_node": Literal["auto", "gpu"] | int,
-            "nnodes": int,
-            "node_rank": int,
-            "rdzv_id": str | int,
-            "rdzv_endpoint": str,
-            "master_addr": str,
-            "master_port": int,
+            'beta1': float,
+            'beta2': float,
+            'eps': float,
+            'weight_decay': float,
+            'checkpoint_at_epoch': bool,
+            'save_final_checkpoint': bool,
+            'num_epochs': int,
+            'use_processed_dataset': bool,
+            'unmask_messages': bool,
+            'data_output_dir': str,
+            'is_pretraining': bool,
+            'block_size': int,
+            'document_column_name': str,
+            'nproc_per_node': Literal['auto', 'gpu'] | int,
+            'nnodes': int,
+            'node_rank': int,
+            'rdzv_id': str | int,
+            'rdzv_endpoint': str,
+            'master_addr': str,
+            'master_port': int,
         }
 
     def _validate_param_types(self, params: dict[str, any]):
@@ -373,14 +373,14 @@ class MiniTrainerOSFTBackend(Backend):
         # here we translate the parameter names that the algorithm used
         # into those used by the backend
         renames = {
-            "use_liger": "use_liger_kernels",
-            "warmup_steps": "num_warmup_steps",
-            "target_patterns": "osft_target_patterns",
-            "unfreeze_rank_ratio": "osft_unfreeze_rank_ratio",
-            "model_path": "model_name_or_path",
-            "num_epochs": "max_epochs",
-            "effective_batch_size": "batch_size",
-            "ckpt_output_dir": "output_dir",
+            'use_liger': 'use_liger_kernels',
+            'warmup_steps': 'num_warmup_steps',
+            'target_patterns': 'osft_target_patterns',
+            'unfreeze_rank_ratio': 'osft_unfreeze_rank_ratio',
+            'model_path': 'model_name_or_path',
+            'num_epochs': 'max_epochs',
+            'effective_batch_size': 'batch_size',
+            'ckpt_output_dir': 'output_dir',
         }
 
         # Rename parameters before sending to backend
@@ -399,49 +399,49 @@ class MiniTrainerOSFTBackend(Backend):
         # proceessing. But we do not want to make assumptions about the size of training data or the
         # amount of memory on the host. So by default we write to storage, but expose this as a separate
         # parameter for performaance gains.
-        data_output_dir = algorithm_params.get("data_output_dir", None)
+        data_output_dir = algorithm_params.get('data_output_dir', None)
         if data_output_dir is None:
-            data_output_dir = os.path.join(algorithm_params["output_dir"], "_internal_data_processing")
+            data_output_dir = os.path.join(algorithm_params['output_dir'], '_internal_data_processing')
 
         # since mini trainer itself does not process data, we delegate this to
         # a separate backend, and expect to receive the correct data path
         training_ready_data_path = self._process_data(
-            data_path=algorithm_params["data_path"],  # should be there
-            model_name_or_path=algorithm_params["model_name_or_path"],  # should be there
+            data_path=algorithm_params['data_path'],  # should be there
+            model_name_or_path=algorithm_params['model_name_or_path'],  # should be there
             output_dir=data_output_dir,
-            max_seq_len=algorithm_params["max_seq_len"],
+            max_seq_len=algorithm_params['max_seq_len'],
             num_cpu_procs=8,  # this is a safe default
-            use_processed_dataset=algorithm_params.get("use_processed_dataset", False),
-            unmask_messages=algorithm_params.get("unmask_messages", False),
-            is_pretraining=algorithm_params.get("is_pretraining", False),
-            document_column_name=algorithm_params.get("document_column_name"),
+            use_processed_dataset=algorithm_params.get('use_processed_dataset', False),
+            unmask_messages=algorithm_params.get('unmask_messages', False),
+            is_pretraining=algorithm_params.get('is_pretraining', False),
+            document_column_name=algorithm_params.get('document_column_name'),
         )
 
         # adjust arguments to align with the API definition
         training_args_pre = {k: v for k, v in algorithm_params.items() if k in training_args_fields and v is not None}
-        training_args_pre["data_path"] = training_ready_data_path  # replaces raw data path with processed
+        training_args_pre['data_path'] = training_ready_data_path  # replaces raw data path with processed
 
         # Construct PretrainingConfig for mini-trainer if pretraining mode
-        if algorithm_params.get("is_pretraining", False):
-            if (block_size := algorithm_params.get("block_size", None)) is None:
-                raise ValueError("block_size is required when is_pretraining=True")
+        if algorithm_params.get('is_pretraining', False):
+            if (block_size := algorithm_params.get('block_size', None)) is None:
+                raise ValueError('block_size is required when is_pretraining=True')
             pretraining_config = PretrainingConfig(
                 block_size=block_size,
             )
-            training_args_pre["pretraining_config"] = pretraining_config
+            training_args_pre['pretraining_config'] = pretraining_config
 
         # mini trainer can support multiple modes, but we don't expose this feature by default
         # to prevent the current API from becoming overly complicated
         if not isinstance(
-            train_mode := training_args_pre.get("training_mode", TrainingMode.EPOCH),
+            train_mode := training_args_pre.get('training_mode', TrainingMode.EPOCH),
             TrainingMode,
         ):
             train_mode = TrainingMode(train_mode)
-        training_args_pre["training_mode"] = train_mode
+        training_args_pre['training_mode'] = train_mode
 
         # user may want to control this API field for debug purposes, so we allow for it to be read
         # but default it to True
-        training_args_pre["osft"] = training_args_pre.get("osft", True)
+        training_args_pre['osft'] = training_args_pre.get('osft', True)
 
         # now we run training
         return run_training(
@@ -485,7 +485,7 @@ class MiniTrainerOSFTBackend(Backend):
             # pass any optional kwargs as-needed
             additional_kwargs = {}
             if document_column_name is not None:
-                additional_kwargs["document_column_name"] = document_column_name
+                additional_kwargs['document_column_name'] = document_column_name
 
             process_documents_for_pretraining(
                 data_path=data_path,
@@ -499,9 +499,9 @@ class MiniTrainerOSFTBackend(Backend):
             # if we received unmask then we need to add that
             processing_data_path = data_path
             if unmask_messages:
-                ds = datasets.load_dataset("json", data_files=data_path, split="train")
-                ds = ds.map(lambda _: {"unmask": True})
-                processing_data_path = os.path.join(output_dir, "intermediate_data.jsonl")
+                ds = datasets.load_dataset('json', data_files=data_path, split='train')
+                ds = ds.map(lambda _: {'unmask': True})
+                processing_data_path = os.path.join(output_dir, 'intermediate_data.jsonl')
                 ds.to_json(processing_data_path)
 
             # now we process the data
@@ -514,11 +514,11 @@ class MiniTrainerOSFTBackend(Backend):
             )
 
         # above function will save to this file, so we pass this to the trainer
-        return os.path.join(output_dir, "data.jsonl")
+        return os.path.join(output_dir, 'data.jsonl')
 
 
-AlgorithmRegistry.register_algorithm("osft", OSFTAlgorithm)
-AlgorithmRegistry.register_backend("osft", "mini-trainer", MiniTrainerOSFTBackend)
+AlgorithmRegistry.register_algorithm('osft', OSFTAlgorithm)
+AlgorithmRegistry.register_backend('osft', 'mini-trainer', MiniTrainerOSFTBackend)
 
 
 def osft(
@@ -531,7 +531,7 @@ def osft(
     learning_rate: float,
     ckpt_output_dir: str,
     data_output_dir: str | None = None,
-    backend: str = "mini-trainer",
+    backend: str = 'mini-trainer',
     # Optional parameters
     target_patterns: list[str] | None = None,
     seed: int | None = None,
@@ -553,7 +553,7 @@ def osft(
     save_final_checkpoint: bool | None = None,
     num_epochs: int | None = None,
     # Torchrun parameters for multi-node support
-    nproc_per_node: Literal["auto", "gpu"] | int | None = None,
+    nproc_per_node: Literal['auto', 'gpu'] | int | None = None,
     nnodes: int | None = None,
     node_rank: int | None = None,
     rdzv_id: str | int | None = None,
@@ -564,7 +564,7 @@ def osft(
 ) -> any:
     from . import create_algorithm
 
-    algorithm: OSFTAlgorithm = create_algorithm("osft", backend)
+    algorithm: OSFTAlgorithm = create_algorithm('osft', backend)
     return algorithm.train(
         model_path=model_path,
         data_path=data_path,

@@ -157,9 +157,7 @@ class OSFTAlgorithm(Algorithm):
 
         # param validation
         if not (0.0 <= unfreeze_rank_ratio <= 1.0):
-            raise ValueError(
-                f"unfreeze_rank_ratio must be between 0.0 and 1.0, but got {unfreeze_rank_ratio}"
-            )
+            raise ValueError(f"unfreeze_rank_ratio must be between 0.0 and 1.0, but got {unfreeze_rank_ratio}")
 
         if is_pretraining and block_size is None:
             raise ValueError("block_size required when is_pretraining=True")
@@ -167,8 +165,7 @@ class OSFTAlgorithm(Algorithm):
         # Validate pretraining parameters
         if is_pretraining and unmask_messages:
             raise ValueError(
-                "Cannot use both is_pretraining=True and unmask_messages=True. "
-                "These are mutually exclusive modes."
+                "Cannot use both is_pretraining=True and unmask_messages=True. These are mutually exclusive modes."
             )
 
         if is_pretraining and block_size is None:
@@ -226,9 +223,7 @@ class OSFTAlgorithm(Algorithm):
         # now do validation now that we've set everything up
         for required_param in self.get_required_params().keys():
             if required_param not in required_params:
-                raise ValueError(
-                    f"error: required parameter not provided: {required_param}"
-                )
+                raise ValueError(f"error: required parameter not provided: {required_param}")
 
         # validate types of all parameters
         self._validate_param_types(required_params)
@@ -342,14 +337,9 @@ class OSFTAlgorithm(Algorithm):
         if origin is dict:
             if not isinstance(value, dict):
                 return False
-            if (
-                args and value
-            ):  # Check key/value types if specified and dict is not empty
+            if args and value:  # Check key/value types if specified and dict is not empty
                 key_type, val_type = args[0], args[1]
-                return all(
-                    self._check_type(k, key_type) and self._check_type(v, val_type)
-                    for k, v in value.items()
-                )
+                return all(self._check_type(k, key_type) and self._check_type(v, val_type) for k, v in value.items())
             return True
 
         # Fallback for basic isinstance check
@@ -401,11 +391,7 @@ class MiniTrainerOSFTBackend(Backend):
         training_args_fields = {f.name for f in fields(TrainingArgs)}
 
         # process this up here so we can exit early
-        torchrun_args_pre = {
-            k: v
-            for k, v in algorithm_params.items()
-            if k in torchrun_args_fields and v is not None
-        }
+        torchrun_args_pre = {k: v for k, v in algorithm_params.items() if k in torchrun_args_fields and v is not None}
         torchrun_args_pre = get_torchrun_params(torchrun_args_pre)
         torch_args = TorchrunArgs(**torchrun_args_pre)
 
@@ -415,17 +401,13 @@ class MiniTrainerOSFTBackend(Backend):
         # parameter for performaance gains.
         data_output_dir = algorithm_params.get("data_output_dir", None)
         if data_output_dir is None:
-            data_output_dir = os.path.join(
-                algorithm_params["output_dir"], "_internal_data_processing"
-            )
+            data_output_dir = os.path.join(algorithm_params["output_dir"], "_internal_data_processing")
 
         # since mini trainer itself does not process data, we delegate this to
         # a separate backend, and expect to receive the correct data path
         training_ready_data_path = self._process_data(
             data_path=algorithm_params["data_path"],  # should be there
-            model_name_or_path=algorithm_params[
-                "model_name_or_path"
-            ],  # should be there
+            model_name_or_path=algorithm_params["model_name_or_path"],  # should be there
             output_dir=data_output_dir,
             max_seq_len=algorithm_params["max_seq_len"],
             num_cpu_procs=8,  # this is a safe default
@@ -436,14 +418,8 @@ class MiniTrainerOSFTBackend(Backend):
         )
 
         # adjust arguments to align with the API definition
-        training_args_pre = {
-            k: v
-            for k, v in algorithm_params.items()
-            if k in training_args_fields and v is not None
-        }
-        training_args_pre["data_path"] = (
-            training_ready_data_path  # replaces raw data path with processed
-        )
+        training_args_pre = {k: v for k, v in algorithm_params.items() if k in training_args_fields and v is not None}
+        training_args_pre["data_path"] = training_ready_data_path  # replaces raw data path with processed
 
         # Construct PretrainingConfig for mini-trainer if pretraining mode
         if algorithm_params.get("is_pretraining", False):
@@ -525,9 +501,7 @@ class MiniTrainerOSFTBackend(Backend):
             if unmask_messages:
                 ds = datasets.load_dataset("json", data_files=data_path, split="train")
                 ds = ds.map(lambda _: {"unmask": True})
-                processing_data_path = os.path.join(
-                    output_dir, "intermediate_data.jsonl"
-                )
+                processing_data_path = os.path.join(output_dir, "intermediate_data.jsonl")
                 ds.to_json(processing_data_path)
 
             # now we process the data
